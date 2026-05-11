@@ -1,7 +1,7 @@
 import React from 'react';
 import './AdminDashboard.css';
 
-const AdminDashboard = ({ config, setConfig, leadData, onLeadDataUpdate }) => {
+const AdminDashboard = ({ config, setConfig, leadData, onLeadDataUpdate, currentUser }) => {
   const handleConfigChange = (e) => {
     const { name, value } = e.target;
     setConfig((prev) => ({
@@ -21,6 +21,19 @@ const AdminDashboard = ({ config, setConfig, leadData, onLeadDataUpdate }) => {
 
   return (
     <div className="admin-dashboard">
+      {currentUser && (
+        <div className="welcome-banner">
+          <span className="welcome-avatar">{currentUser.name?.[0]?.toUpperCase() || '?'}</span>
+          <div>
+            <h3 className="welcome-name">Welcome back, {currentUser.name}! 👋</h3>
+            <p className="welcome-meta">
+              {currentUser.role && <span>{currentUser.role}</span>}
+              {currentUser.company && <span> · {currentUser.company}</span>}
+              <span> · {currentUser.email}</span>
+            </p>
+          </div>
+        </div>
+      )}
       <h2>Admin Dashboard - Chatbot Persona Configuration</h2>
       <div className="form-group">
         <label>Main Goal / Problem:</label>

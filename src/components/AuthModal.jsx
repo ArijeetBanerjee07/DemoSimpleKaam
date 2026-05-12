@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { GoogleLogin } from '@react-oauth/google';
 import './AuthModal.css';
 import { checkEmail, register, login } from '../services/api';
 
@@ -35,6 +36,37 @@ const AuthModal = ({ prefillEmail = '', prefillName = '', onAuthSuccess, onClose
       setLoading(false);
       setError(err.message || 'Could not reach server. Is it running?');
     }
+  };
+
+  const handleGoogleSuccess = (credentialResponse) => {
+    console.log('Google Auth Success:', credentialResponse);
+    
+    // Decode the JWT credential from Google to extract user info
+    try {
+      const token = credentialResponse.credential;
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      const decoded = JSON.parse(jsonPayload);
+      
+      onAuthSuccess({
+        name: decoded.name || 'User',
+        email: decoded.email || email || 'google@user.com',
+        isGoogleUser: true
+      });
+    } catch (err) {
+      console.error('Failed to decode Google credential:', err);
+      setError('Failed to process Google authentication.');
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError('Google authentication failed.');
   };
 
   // Step 2 — simulated email verification
@@ -81,21 +113,38 @@ const AuthModal = ({ prefillEmail = '', prefillName = '', onAuthSuccess, onClose
   // ── Step renderers ────────────────────────────────────────────────────────
 
   const renderDecide = () => (
-    <form onSubmit={handleDecide} className="auth-form">
+    <div className="auth-form">
       <div className="auth-icon">✉️</div>
       <h2>Welcome to UnifySpace</h2>
       <p className="auth-sub">Enter your email to get started or log back in.</p>
-      <div className="field-group">
-        <label>Email address</label>
-        <input id="auth-email" type="email" value={email}
-          onChange={e => setEmail(e.target.value)}
-          placeholder="you@company.com" required autoFocus />
+      <form onSubmit={handleDecide} className="form-inner">
+        <div className="field-group">
+          <label>Email address</label>
+          <input id="auth-email" type="email" value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="you@company.com" required autoFocus />
+        </div>
+        {error && <p className="auth-error">{error}</p>}
+        <button type="submit" className="auth-btn primary" disabled={loading}>
+          {loading ? 'Checking…' : 'Continue →'}
+        </button>
+      </form>
+      
+      <div className="auth-divider">
+        <span>OR</span>
       </div>
-      {error && <p className="auth-error">{error}</p>}
-      <button type="submit" className="auth-btn primary" disabled={loading}>
-        {loading ? 'Checking…' : 'Continue →'}
-      </button>
-    </form>
+
+      <div className="google-btn-wrapper">
+        <GoogleLogin
+          onSuccess={handleGoogleSuccess}
+          onError={handleGoogleError}
+          theme="outline"
+          shape="pill"
+          text="continue_with"
+          width="100%"
+        />
+      </div>
+    </div>
   );
 
   const renderVerify = () => (
@@ -148,31 +197,48 @@ const AuthModal = ({ prefillEmail = '', prefillName = '', onAuthSuccess, onClose
 
 
   const renderLogin = () => (
-    <form onSubmit={handleLogin} className="auth-form">
+    <div className="auth-form">
       <div className="auth-icon">👋</div>
       <h2>Welcome Back!</h2>
       <p className="auth-sub">Logging in as <strong>{email}</strong></p>
-      <div className="field-group">
-        <label>Password</label>
-        <input id="login-password" type="password" value={password}
-          onChange={e => setPassword(e.target.value)}
-          placeholder="Your password" required autoFocus />
+      <form onSubmit={handleLogin} className="form-inner">
+        <div className="field-group">
+          <label>Password</label>
+          <input id="login-password" type="password" value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="Your password" required autoFocus />
+        </div>
+        {error && <p className="auth-error">{error}</p>}
+        <button type="submit" className="auth-btn primary" disabled={loading}>
+          {loading ? 'Logging in…' : 'Log In →'}
+        </button>
+      </form>
+
+      <div className="auth-divider">
+        <span>OR</span>
       </div>
-      {error && <p className="auth-error">{error}</p>}
-      <button type="submit" className="auth-btn primary" disabled={loading}>
-        {loading ? 'Logging in…' : 'Log In →'}
-      </button>
+
+      <div className="google-btn-wrapper">
+        <GoogleLogin
+          onSuccess={handleGoogleSuccess}
+          onError={handleGoogleError}
+          theme="outline"
+          shape="pill"
+          width="100%"
+        />
+      </div>
+
       <button type="button" className="auth-btn ghost"
         onClick={() => { setStep(STEPS.DECIDE); setPassword(''); setError(''); }}>
         ← Use a different email
       </button>
-    </form>
+    </div>
   );
 
   return (
     <div className="auth-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="auth-modal">
-        {step !== STEPS.LOGIN && (
+        {step !== STEPS.LOGIN && step !== STEPS.DECIDE && (
           <div className="auth-progress">
             {[STEPS.DECIDE, STEPS.VERIFY, STEPS.SETPASS].map((s, i) => (
               <div key={s} className={`progress-dot ${

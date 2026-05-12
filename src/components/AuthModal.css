@@ -234,6 +234,40 @@
   padding: 0.5rem 0.8rem;
   animation: shake 0.3s ease;
 }
+
+/* ── Form Inner ── */
+.form-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* ── Divider ── */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.5rem 0;
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Google Button Wrapper ── */
+.google-btn-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
 @keyframes shake {
   0%,100% { transform: translateX(0); }
   25%      { transform: translateX(-6px); }

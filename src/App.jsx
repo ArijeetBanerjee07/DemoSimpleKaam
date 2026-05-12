@@ -16,6 +16,7 @@ function App() {
   const [currentUser, setCurrentUser]     = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [pendingAuth, setPendingAuth]     = useState(null);
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
 
   // ── Restore session on mount ──────────────────────────────────────────────
   useEffect(() => {
@@ -32,8 +33,10 @@ function App() {
 
   const handleReadyForDashboard = ({ email, name }) => {
     setPendingAuth({ email, name });
+    // Create a temporary unverified user session so dashboard renders
+    setCurrentUser({ email, name, isUnverified: true });
     setCurrentTab('admin');
-    setShowAuthModal(true);
+    setShowGoogleModal(true);
   };
 
   const handleAuthSuccess = (userData) => {
@@ -96,6 +99,7 @@ function App() {
               config={chatbotConfig}
               onLeadDataUpdate={handleLeadDataUpdate}
               onReadyForDashboard={handleReadyForDashboard}
+              autoOpen={true}
             />
           </div>
         ) : (
@@ -105,6 +109,9 @@ function App() {
             leadData={leadData}
             onLeadDataUpdate={handleLeadDataUpdate}
             currentUser={currentUser}
+            setCurrentUser={setCurrentUser}
+            showGoogleModal={showGoogleModal}
+            setShowGoogleModal={setShowGoogleModal}
           />
         )}
       </main>

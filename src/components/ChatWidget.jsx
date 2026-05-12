@@ -43,6 +43,8 @@ Silently adapt your pitch based on their role:
 PHASE 3 — PITCH:
 First, make them feel UNDERSTOOD ("That's a common problem for..."). 
 Then transition into how UnifySpace solves it. Ask "Does that sound like something that would help you?"
+Once they express interest or after you've made your pitch, ask for their email address to set up their personalized dashboard. 
+End that message with exactly: "What's your email address so I can set up your dashboard? 📧"
 
 TONE & STYLE: 
 ${config.responseStyle}
@@ -61,8 +63,8 @@ RESPONSE LENGTH — CRITICAL:
 
 // ── component ─────────────────────────────────────────────────────────────────
 
-const ChatWidget = ({ config, onLeadDataUpdate, onReadyForDashboard }) => {
-  const [isOpen, setIsOpen]               = useState(false);
+const ChatWidget = ({ config, onLeadDataUpdate, onReadyForDashboard, autoOpen = false }) => {
+  const [isOpen, setIsOpen]               = useState(autoOpen);
   const [showLabel, setShowLabel]         = useState(false);
   const [isTyping, setIsTyping]           = useState(false);
   const [messages, setMessages]           = useState([]);
@@ -73,6 +75,7 @@ const ChatWidget = ({ config, onLeadDataUpdate, onReadyForDashboard }) => {
   const [msgCount, setMsgCount]           = useState(0);         // user message count
   const [extractedName, setExtractedName] = useState('');
   const messagesEndRef = useRef(null);
+  const startedRef     = useRef(false);
 
   // If user already logged in, greet differently
   const loggedInUser = getSession();
@@ -88,14 +91,19 @@ const ChatWidget = ({ config, onLeadDataUpdate, onReadyForDashboard }) => {
   }, [config]);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, isTyping]);
-  useEffect(() => { const t = setTimeout(() => setShowLabel(true), 3000); return () => clearTimeout(t); }, []);
+  useEffect(() => { 
+    const t = setTimeout(() => setShowLabel(true), 3000); 
+    if (autoOpen) startConversation();
+    return () => clearTimeout(t); 
+  }, []);
 
   const addMessage = (text, sender = 'ai', reaction = null, empathy = false) =>
     setMessages(prev => [...prev, { text, sender, reaction, empathy }]);
 
   // ── start conversation ──────────────────────────────────────────────────────
   const startConversation = async () => {
-    if (messages.length > 0) return;
+    if (startedRef.current || messages.length > 0) return;
+    startedRef.current = true;
     setIsTyping(true);
     let firstMsg;
     if (loggedInUser) {
@@ -144,8 +152,8 @@ const ChatWidget = ({ config, onLeadDataUpdate, onReadyForDashboard }) => {
     if (!inputValue.trim() || isTyping || phase === 'done') return;
     const userText = inputValue.trim();
 
-    // If we are in the email-collection phase, treat input as email
-    if (phase === 'ask_email') {
+    // ── If in email phase OR user types an email proactively ────────────────
+    if (phase === 'ask_email' || (phase === 'chatting' && isEmailValid(userText))) {
       addMessage(userText, 'user');
       setInputValue('');
       await handleEmailSubmit(userText);
@@ -161,25 +169,13 @@ const ChatWidget = ({ config, onLeadDataUpdate, onReadyForDashboard }) => {
     setMsgCount(newCount);
 
     const updatedHistory = [...history, { role: 'user', content: userText }];
-    
-    // On the 7th user message, inject instruction to ask for email.
-    // DON'T switch phase yet — wait until after the AI replies with the email question.
-    const isEmailTriggerTurn = newCount === 7 && phase === 'chatting' && !loggedInUser;
-
-    if (isEmailTriggerTurn) {
-      updatedHistory.push({ 
-        role: 'system', 
-        content: 'You have now gathered enough information (name, role, team size, location, phone, pain point). Briefly acknowledge the user\'s last answer with empathy. Then ask ONLY for their email address to set up their dashboard. End with exactly: "What\'s your email address so I can set up your dashboard? 📧"'
-      });
-    }
-
     setHistory(updatedHistory);
-
     const response = await chatWithAssistant(updatedHistory);
     setIsTyping(false);
 
-    // Switch to ask_email only after the AI has replied with the email question
-    if (isEmailTriggerTurn) {
+    // ── Dynamic Phase Switch ──
+    // If the AI actually asked for the email (detected by emoji or specific phrase), switch phase
+    if (phase === 'chatting' && (response.includes('📧') || response.toLowerCase().includes('email address'))) {
       setPhase('ask_email');
     }
 
